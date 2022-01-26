@@ -1,0 +1,497 @@
+  METHOD park_to_post.
+    TRY.
+        CONSTANTS: lc_sep TYPE char1  VALUE cl_abap_char_utilities=>newline.
+        DATA: lt_msg        TYPE TABLE OF bdcmsgcoll,   " Collecting Success/Error messages
+              ls_msg        TYPE bdcmsgcoll,
+              gv_msg        TYPE string,
+              lv_msg        TYPE string,
+              lv_msg1       TYPE string,
+              lv_msg2       TYPE string,
+              lv_msg3       TYPE string,
+              lv_msg4       TYPE string,
+              lv_cm         TYPE char255, "Added for 9921 posting error by MARINAHOTA on 09/02/2021
+              lv_cm1        TYPE char255, "Added for 9921 posting error by MARINAHOTA on 09/02/2021
+              lv_date       TYPE char10,
+              lv_mode       TYPE char1 VALUE 'N',   "+Added for incident INC01469291 on 31.03.2021
+              lv_upd        TYPE char1 VALUE 'S',   "+Added for incident INC01469291 on 31.03.2021
+              gt_bdcdata    TYPE STANDARD TABLE OF bdcdata,
+              gs_bdcdata    TYPE bdcdata,
+              lv_flag_error TYPE char1.
+
+*Start of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+        IF ( im_budat IS INITIAL OR im_budat = '00000000' ) AND
+           ( im_bldat IS INITIAL OR im_bldat = '00000000' ).
+
+          SELECT SINGLE gjahr, blart, bldat, budat, xblnr,
+            bktxt,waers                       ""+Added for incident INC01469291 on 31.03.2021
+          FROM vbkpf INTO @DATA(ls_vbkpf)
+          WHERE bukrs = @im_bukrs
+          AND   belnr = @im_belnr.
+          "+Begin of addition for incident INC01469291 on 31.03.2021
+        ELSE.
+          SELECT SINGLE gjahr,bktxt,waers
+          FROM vbkpf INTO CORRESPONDING FIELDS OF @ls_vbkpf
+          WHERE bukrs = @im_bukrs
+          AND   belnr = @im_belnr.
+          "+End of addition for incident INC01469291 on 31.03.2021
+        ENDIF.
+*End of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+        "+Begin of addition for incident INC01469291 on 31.03.2021
+        IF ls_vbkpf-waers = 'USD'.
+          "+End of addition for incident INC01469291 on 31.03.2021
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPMF05V'.
+          gs_bdcdata-dynpro   = '0100'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_CURSOR'.
+          gs_bdcdata-fval = 'RF05V-BELNR'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_OKCODE'.
+          gs_bdcdata-fval = '/00'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'RF05V-BUKRS'.
+          gs_bdcdata-fval = im_bukrs.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'RF05V-BELNR'.
+          gs_bdcdata-fval = im_belnr.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+*Start of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+          IF ls_vbkpf-gjahr IS INITIAL.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'RF05V-GJAHR'.
+            gs_bdcdata-fval = im_gjahr.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ELSE.
+*End of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'RF05V-GJAHR'.
+            gs_bdcdata-fval = ls_vbkpf-gjahr. "Changed for SCTASK1885527 by MARINAHOTA on 05/02/2021
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ENDIF. "Added for SCTASK1885527 by MARINAHOTA on 05/02/2021
+
+*Start of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPLF040'.
+          gs_bdcdata-dynpro   = '0700'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_CURSOR'.
+          gs_bdcdata-fval = 'BKPF-XBLNR'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_OKCODE'.
+          gs_bdcdata-fval = '=BK'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPLF040'.
+          gs_bdcdata-dynpro   = '0600'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_CURSOR'.
+          gs_bdcdata-fval = 'BKPF-BUDAT'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_OKCODE'.
+          gs_bdcdata-fval = '=RW'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          IF im_bldat IS INITIAL OR im_bldat = '00000000'.
+
+
+            DATA(lv_temp) = ls_vbkpf-bldat.
+            DATA(lv_yr) = lv_temp(4).
+            DATA(lv_mon) = lv_temp+4(2).
+            DATA(lv_day) = lv_temp+6(2).
+            CONCATENATE lv_day '.' lv_mon '.' lv_yr INTO lv_date.
+            CONDENSE lv_date.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'BKPF-BLDAT'.
+            gs_bdcdata-fval = lv_date.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ELSE.
+
+            CLEAR: lv_yr, lv_mon, lv_day, lv_date.
+            lv_temp = im_bldat.
+            lv_yr = lv_temp(4).
+            lv_mon = lv_temp+4(2).
+            lv_day = lv_temp+6(2).
+            CONCATENATE lv_day '.' lv_mon '.' lv_yr INTO lv_date.
+            CONDENSE lv_date.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'BKPF-BLDAT'.
+            gs_bdcdata-fval = lv_date.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ENDIF.
+
+          IF im_budat IS INITIAL OR im_budat = '00000000'.
+
+            CLEAR: lv_yr, lv_mon, lv_day, lv_date.
+            lv_temp = ls_vbkpf-budat.
+            lv_yr = lv_temp(4).
+            lv_mon = lv_temp+4(2).
+            lv_day = lv_temp+6(2).
+            CONCATENATE lv_day '.' lv_mon '.' lv_yr INTO lv_date.
+            CONDENSE lv_date.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'BKPF-BUDAT'.
+            gs_bdcdata-fval = lv_date.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ELSE.
+
+            CLEAR: lv_yr, lv_mon, lv_day, lv_date.
+            lv_temp = im_budat.
+            lv_yr = lv_temp(4).
+            lv_mon = lv_temp+4(2).
+            lv_day = lv_temp+6(2).
+            CONCATENATE lv_day '.' lv_mon '.' lv_yr INTO lv_date.
+            CONDENSE lv_date.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'BKPF-BUDAT'.
+            gs_bdcdata-fval = lv_date.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ENDIF.
+*End of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPLF040'.
+          gs_bdcdata-dynpro   = '0700'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_CURSOR'.
+          gs_bdcdata-fval = 'BKPF-XBLNR'.  "Changed for SCTASK1885527 by MARINAHOTA on 05/02/2021
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_OKCODE'.
+          gs_bdcdata-fval = '=BU'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          "+Begin of addition for incident INC01469291 on 31.03.2021
+        ELSE. "Where currency is not USD and currency converion is not required
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPMF05V'.
+          gs_bdcdata-dynpro   = '0100'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_CURSOR'.
+          gs_bdcdata-fval = 'RF05V-BELNR'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_OKCODE'.
+          gs_bdcdata-fval = '/00'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'RF05V-BUKRS'.
+          gs_bdcdata-fval = im_bukrs.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'RF05V-BELNR'.
+          gs_bdcdata-fval = im_belnr.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+*Start of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+          IF ls_vbkpf-gjahr IS INITIAL.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'RF05V-GJAHR'.
+            gs_bdcdata-fval = im_gjahr.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ELSE.
+*End of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'RF05V-GJAHR'.
+            gs_bdcdata-fval = ls_vbkpf-gjahr. "Changed for SCTASK1885527 by MARINAHOTA on 05/02/2021
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ENDIF. "Added for SCTASK1885527 by MARINAHOTA on 05/02/2021
+
+*Start of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPLF040'.
+          gs_bdcdata-dynpro   = '0700'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_CURSOR'.
+          gs_bdcdata-fval = 'BKPF-XBLNR'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_OKCODE'.
+          gs_bdcdata-fval = '=BK'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPLF040'.
+          gs_bdcdata-dynpro   = '0600'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_CURSOR'.
+          gs_bdcdata-fval = 'BKPF-BUDAT'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_OKCODE'.
+          gs_bdcdata-fval = '=RW'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          IF im_bldat IS INITIAL OR im_bldat = '00000000'.
+
+
+            lv_temp = ls_vbkpf-bldat.
+            lv_yr = lv_temp(4).
+            lv_mon = lv_temp+4(2).
+            lv_day = lv_temp+6(2).
+            CONCATENATE lv_day '.' lv_mon '.' lv_yr INTO lv_date.
+            CONDENSE lv_date.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'BKPF-BLDAT'.
+            gs_bdcdata-fval = lv_date.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ELSE.
+
+            CLEAR: lv_yr, lv_mon, lv_day, lv_date.
+            lv_temp = im_bldat.
+            lv_yr = lv_temp(4).
+            lv_mon = lv_temp+4(2).
+            lv_day = lv_temp+6(2).
+            CONCATENATE lv_day '.' lv_mon '.' lv_yr INTO lv_date.
+            CONDENSE lv_date.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'BKPF-BLDAT'.
+            gs_bdcdata-fval = lv_date.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ENDIF.
+*
+          IF im_budat IS INITIAL OR im_budat = '00000000'.
+
+            CLEAR: lv_yr, lv_mon, lv_day, lv_date.
+            lv_temp = ls_vbkpf-budat.
+            lv_yr = lv_temp(4).
+            lv_mon = lv_temp+4(2).
+            lv_day = lv_temp+6(2).
+            CONCATENATE lv_day '.' lv_mon '.' lv_yr INTO lv_date.
+            CONDENSE lv_date.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'BKPF-BUDAT'.
+            gs_bdcdata-fval = lv_date.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ELSE.
+
+            CLEAR: lv_yr, lv_mon, lv_day, lv_date.
+            lv_temp = im_budat.
+            lv_yr = lv_temp(4).
+            lv_mon = lv_temp+4(2).
+            lv_day = lv_temp+6(2).
+            CONCATENATE lv_day '.' lv_mon '.' lv_yr INTO lv_date.
+            CONDENSE lv_date.
+
+            CLEAR gs_bdcdata.
+            gs_bdcdata-fnam = 'BKPF-BUDAT'.
+            gs_bdcdata-fval = lv_date.
+            APPEND gs_bdcdata TO gt_bdcdata.
+
+          ENDIF.
+*End of change for SCTASK1885527 by MARINAHOTA on 05/02/2021
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPLSPO1'.
+          gs_bdcdata-dynpro   = '0200'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_OKCODE'.
+          gs_bdcdata-fval = '=YES'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPLF040'.
+          gs_bdcdata-dynpro   = '0600'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-program  = 'SAPLF040'.
+          gs_bdcdata-dynpro   = '0700'.
+          gs_bdcdata-dynbegin = 'X'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_CURSOR'.
+          gs_bdcdata-fval = 'BKPF-XBLNR'.  "Changed for SCTASK1885527 by MARINAHOTA on 05/02/2021
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+          CLEAR gs_bdcdata.
+          gs_bdcdata-fnam = 'BDC_OKCODE'.
+          gs_bdcdata-fval = '=BU'.
+          APPEND gs_bdcdata TO gt_bdcdata.
+
+        ENDIF.
+        "+End of addition for incident INC01469291 on 31.03.2021
+
+        CALL TRANSACTION 'FBV0' USING gt_bdcdata MODE lv_mode UPDATE lv_upd MESSAGES INTO lt_msg.
+        READ TABLE lt_msg INTO ls_msg WITH KEY msgtyp = 'E'.
+        IF sy-subrc = 0.
+          ex_flag = abap_true.
+          LOOP AT lt_msg INTO ls_msg WHERE msgtyp = 'E'.
+
+            CALL FUNCTION 'MESSAGE_TEXT_BUILD'
+              EXPORTING
+                msgid               = ls_msg-msgid
+                msgnr               = ls_msg-msgnr
+                msgv1               = ls_msg-msgv1
+                msgv2               = ls_msg-msgv2
+                msgv3               = ls_msg-msgv3
+                msgv4               = ls_msg-msgv4
+              IMPORTING
+                message_text_output = gv_msg.
+            IF ex_msg IS INITIAL.
+              ex_msg = gv_msg.
+            ELSE.
+              CONCATENATE ex_msg lc_sep gv_msg INTO ex_msg.
+            ENDIF.
+            CLEAR: ls_msg, gv_msg.
+          ENDLOOP.
+        ELSE.
+          GET PARAMETER ID '/KGO/COMMIT' FIELD lv_cm. "Added for 9921 posting error by MARINAHOTA on 09/02/2021
+          GET PARAMETER ID '/KGO/COMMIT1' FIELD lv_cm1. "Added for 9921 posting error by MARINAHOTA on 09/02/2021
+          IMPORT lv_msg TO lv_msg FROM MEMORY ID 'MSG_RCH'.
+          IMPORT lv_msg1 TO lv_msg1 FROM MEMORY ID 'MSG_SEQ1'.
+          IMPORT lv_msg2 TO lv_msg2 FROM MEMORY ID 'MSG_EXT'.
+          IMPORT lv_msg3 TO lv_msg3 FROM MEMORY ID 'MSG_PVR'.
+          IMPORT lv_msg4 TO lv_msg4 FROM MEMORY ID 'MSG_PER'.
+          IF lv_msg IS NOT INITIAL OR lv_msg1 IS NOT INITIAL OR lv_msg2 IS NOT INITIAL OR lv_msg3 IS NOT INITIAL OR lv_msg4 IS NOT INITIAL.
+            ex_flag = abap_true.
+            CONCATENATE lv_msg lv_msg1 lv_msg2 lv_msg3 lv_msg4 INTO ex_msg SEPARATED BY space.
+
+*Start of change for 9921 posting error by MARINAHOTA on 09/02/2021
+          ELSEIF lv_cm IS NOT INITIAL OR lv_cm1 IS NOT INITIAL.
+            ex_flag = abap_true.
+            CONCATENATE lv_cm lv_cm1 INTO ex_msg SEPARATED BY space.
+*End of change for 9921 posting error by MARINAHOTA on 09/02/2021
+          ELSE.
+* Begin of changes by ABHISHEKB on 24/09/2021 for incident INC01694244
+            SELECT SINGLE bstat FROM bkpf INTO @DATA(lv_bstat) WHERE bukrs = @im_bukrs
+                                                                AND  belnr = @im_belnr
+*                                                                AND  gjahr = @im_gjahr
+                                                                AND  bstat = ' '.                                                                  .
+            IF sy-subrc = 0.
+              ex_flag = abap_false.
+              CALL FUNCTION 'MESSAGE_TEXT_BUILD'
+                EXPORTING
+                  msgid               = ls_msg-msgid
+                  msgnr               = ls_msg-msgnr
+                  msgv1               = ls_msg-msgv1
+                  msgv2               = ls_msg-msgv2
+                  msgv3               = ls_msg-msgv3
+                  msgv4               = ls_msg-msgv4
+                IMPORTING
+                  message_text_output = gv_msg.
+              ex_msg = 'Document was posted successfully'."gv_msg.
+
+            ELSE.
+              SELECT SINGLE low FROM tvarvc INTO @DATA(lv_wait) WHERE name = '/KGO/FI_AR_WAIT_TIME'.
+              IF  sy-subrc NE 0.
+                lv_wait = 2.
+              ENDIF.
+              IF lv_wait IS  INITIAL.
+                lv_wait = 2.
+              ENDIF.
+              DO 5 TIMES.
+                WAIT UP TO lv_wait SECONDS.
+                SELECT SINGLE bstat FROM bkpf INTO lv_bstat WHERE bukrs = im_bukrs
+                                                                AND  belnr = im_belnr
+*                                                                AND  gjahr = im_gjahr
+                                                                AND  bstat = ' '.
+                IF sy-subrc EQ 0.
+                  ex_flag = abap_false.
+                  CALL FUNCTION 'MESSAGE_TEXT_BUILD'
+                    EXPORTING
+                      msgid               = ls_msg-msgid
+                      msgnr               = ls_msg-msgnr
+                      msgv1               = ls_msg-msgv1
+                      msgv2               = ls_msg-msgv2
+                      msgv3               = ls_msg-msgv3
+                      msgv4               = ls_msg-msgv4
+                    IMPORTING
+                      message_text_output = gv_msg.
+                  ex_msg = 'Document was posted successfully'.
+                  CLEAR lv_flag_error.
+                  EXIT.
+                ELSE.
+                  lv_flag_error = abap_true.
+                ENDIF.
+              ENDDO.
+              IF lv_flag_error EQ abap_true.
+                ex_flag = abap_true.
+                CALL FUNCTION 'MESSAGE_TEXT_BUILD'
+                  EXPORTING
+                    msgid               = ls_msg-msgid
+                    msgnr               = ls_msg-msgnr
+                    msgv1               = ls_msg-msgv1
+                    msgv2               = ls_msg-msgv2
+                    msgv3               = ls_msg-msgv3
+                    msgv4               = ls_msg-msgv4
+                  IMPORTING
+                    message_text_output = gv_msg.
+                ex_msg = 'Error in Document Posting'.
+              ENDIF.
+            ENDIF.
+
+*End of changes by ABHISHEKB on 24/09/2021 for incident INC01694244.
+          ENDIF.
+
+          CLEAR: ls_msg, gv_msg.
+        ENDIF.
+      CATCH cx_root.
+        ex_flag = abap_true.
+        ex_msg = TEXT-004.
+    ENDTRY.
+
+  ENDMETHOD.
